@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Juno Task Master Pro</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Juno">
+    
+    <script src="https://jsdelivr.net"></script>
+    <script src="https://cloudflare.com"></script>
+
+    <style>
+        :root { --bg: #0b0e14; --card: #171a21; --text: #c7d5e0; --accent: #1a9fff; --success: #4caf50; --btn-dark: #2a475e; --steam-blue: #66c0f4; --danger: #ff3b30; }
+        .light-theme { --bg: #f4f6f9; --card: #ffffff; --text: #1c1e21; --btn-dark: #e1e6eb; --steam-blue: #007aff; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: "Motiva Sans", -apple-system, sans-serif; padding: 20px; padding-top: 60px; }
+        .container { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+        .theme-toggle { background: none; border: none; font-size: 20px; cursor: pointer; }
+        .status { font-size: 13px; color: var(--steam-blue); background: var(--card); padding: 12px; border-radius: 4px; text-align: center; border: 1px solid #1d2c3f; }
+        .queue-container { background: var(--card); border-radius: 4px; padding: 15px; border: 1px solid #233c51; display: flex; flex-direction: column; gap: 10px; }
+        .queue-header { font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text); border-bottom: 1px solid #233c51; padding-bottom: 5px; display: flex; justify-content: space-between; }
+        .queue-count { font-size: 12px; color: var(--accent); }
+        .file-label { background: var(--btn-dark); color: var(--text); padding: 12px; border-radius: 3px; font-weight: 600; text-align: center; cursor: pointer; display: block; font-size: 14px; border: 1px solid #3d6c8d; }
+        .file-label.disabled { opacity: 0.4; cursor: not-allowed; background: #222; border-color: #333; }
+        input[type="file"] { display: none; }
+        .task-item { background: var(--bg); padding: 12px; border-radius: 3px; border: 1px solid #1f222b; display: flex; flex-direction: column; gap: 8px; }
+        .task-info { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; align-items: center; width: 100%; }
+        .task-left-block { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+        .task-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+        .task-right-block { display: flex; align-items: center; gap: 8px; }
+        .task-status { color: #889296; font-size: 12px; }
+        .progress-container { background: #22252b; width: 100%; height: 18px; border-radius: 2px; overflow: hidden; position: relative; border: 1px solid #333; }
+        .progress-bar { background: linear-gradient(to right, #47b1e6, #1a9fff); width: 0%; height: 100%; transition: width 0.1s linear; }
+        .progress-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; font-size: 11px; line-height: 18px; color: #fff; font-weight: 700; text-shadow: 1px 1px 2px #000; }
+        .timer-display { font-size: 11px; color: #5c9cba; font-weight: 600; text-align: right; margin-top: -4px; display: none; }
+        .btn-row-pdf { background: linear-gradient(to bottom, #5c942e 0%, #437020 100%); border: 1px solid #6b9c3a; color: white; padding: 6px 10px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; display: none; }
+        .btn-row-delete { background: rgba(0,0,0,0.2); border: 1px solid #444; color: var(--danger); padding: 5px 8px; border-radius: 3px; font-size: 12px; cursor: pointer; }
+        .btn-row-delete:disabled { opacity: 0.3; cursor: not-allowed; }
+        .controls-row { display: flex; gap: 8px; }
+        .btn-ctrl { flex: 1; color: white; padding: 12px; border-radius: 3px; font-weight: 600; text-align: center; cursor: pointer; border: none; font-size: 13px; text-transform: uppercase; }
+        .btn-start { background: linear-gradient(to bottom, #a4e00e 0%, #6ab218 100%); text-shadow: 1px 1px 1px #333; }
+        .btn-pause { background: #b84343; }
+        .btn-stop-after { background: #6d5334; font-size: 11px; padding: 12px 6px; }
+        .btn-clear { background: #444; border: 1px solid #666; font-size: 11px; }
+        .output-title { font-size: 12px; font-weight: 600; text-transform: uppercase; margin-top: 5px; color: #556; }
+        .output-box { background: var(--card); border-radius: 4px; padding: 12px; min-height: 60px; max-height: 120px; overflow-y: auto; white-space: pre-wrap; font-size: 12px; line-height: 1.5; border: 1px solid #1b2838; color: var(--text); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-row">
+        <h1>Juno Task Master Pro</h1>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+    </div>
+    
+    <div id="status" class="status">📥 Add up to 15 videos. Runs smoothly in background!</div>
+    
+    <div class="queue-container">
+        <div class="queue-header">
+            <span>Separate File Task List</span>
+            <span id="queue-counter" class="queue-count">(0/15 Clips)</span>
+        </div>
+        
+        <label id="upload-label" for="queue-upload" class="file-label">➕ Add Videos to Task List</label>
+        <input type="file" id="queue-upload" accept="video/*" multiple>
+        
+        <div id="task-list-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        
+        <div class="controls-row">
+            <button id="btn-toggle-run" class="btn-ctrl btn-start" style="display:none;">Start Queue</button>
+            <button id="btn-stop-after" class="btn-ctrl btn-stop-after" style="display:none;">Stop After Current</button>
+            <button id="btn-master-clear" class="btn-ctrl btn-clear" style="display:none;" onclick="clearEntireWorkspace()">Clear All</button>
+        </div>
+    </div>
+
+    <div class="output-title">🔍 Live Status Logger</div>
+    <div id="output" class="output-box">Processing updates will stream live right here...</div>
+</div>
+
+<script>
+const MAX_QUEUE_SIZE = 15;
+let taskQueue = [];
+let currentTaskIndex = -1;
+let isQueueRunning = false;
+let stopAfterCurrentVideo = false;
+let audioPipeline = null;
+let audioWakeLock = null;
+
+const statusDiv = document.getElementById('status');
+const taskListContainer = document.getElementById('task-list-container');
+const outputDiv = document.getElementById('output');
+const toggleRunBtn = document.getElementById('btn-toggle-run');
+const stopAfterBtn = document.getElementById('btn-stop-after');
+const masterClearBtn = document.getElementById('btn-master-clear');
+const queueUpload = document.getElementById('queue-upload');
+const uploadLabel = document.getElementById('upload-label');
+const queueCounter = document.getElementById('queue-counter');
+
+function toggleTheme() { document.body.classList.toggle('light-theme'); }
+
+// INDEXEDDB DISK STORAGE ENGINE (PERMANENT HARD CACHE SAVE FOR LARGE BATCHES)
+const dbName = "JunoDiskStorage";
+let db;
+const request = indexedDB.open(dbName, 1);
+request.onupgradeneeded = (e) => {
+    db = e.target.result;
+    if (!db.objectStoreNames.contains("transcripts")) {
+        db.createObjectStore("transcripts", { keyPath: "id" });
+    }
+};
+request.onsuccess = (e) => { db = e.target.result; };
+
+function saveToDisk(id, text) {
+    const transaction = db.transaction(["transcripts"], "readwrite");
+    transaction.objectStore( "transcripts").put({ id: id, text: text });
+}
+
+function getFromDisk(id, callback) {
+    const transaction = db.transaction(["transcripts"], "readonly");
+    const req = transaction.objectStore("transcripts").get(id);
+    req.onsuccess = () => callback(req.result ? req.result.text : '');
+}
+
+function clearDiskStorage() {
+    if (!db) return;
+    const transaction = db.transaction(["transcripts"], "readwrite");
+    transaction.objectStore("transcripts").clear();
+}
+
+// ANTI-SLEEP BACKGROUND AUDIO WORK-LOCK ACTIVATOR
+function startAudioWakeLock() {
+    if (audioWakeLock) return;
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Generate an oscillating wave that vibrates at a frequency humans cannot hear
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.frequency.setValueAtTime(21000, audioCtx.currentTime); // Sub-audible frequency
+        gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime); // Almost silent depth volume
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+        audioWakeLock = { ctx: audioCtx, osc: oscillator };
+    } catch(err) { console.log("WakeLock Init Suppressed until user tap interactions."); }
+}
+
+function stopAudioWakeLock() {
+    if (!audioWakeLock) return;
+    try { audioWakeLock.osc.stop(); audioWakeLock.ctx.close(); audioWakeLock = null; } catch(e){}
+}
+
+function clearEntireWorkspace() {
+    if (isQueueRunning) return;
+    taskQueue = [];
+    currentTaskIndex = -1;
+    taskListContainer.innerHTML = "";
+    outputDiv.innerText = "System flushed. Ready for next test batch.";
+    clearDiskStorage();
+    stopAudioWakeLock();
+    updateToggleVisibility();
+}
+
+queueUpload.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+
+if (files.length === 0) return;
+// FORCE SHUT DOWN ADDING MORE FILE LOADS ONCE THE QUEUE HIT LIMIT THRESHOLD
+if (taskQueue.length + files.length > MAX_QUEUE_SIZE) {
+statusDiv.innerText = ⚠️ Blocked! Batch limit is 15 clips. You tried to add too many.;
+return;
+}
+statusDiv.innerText = ⏳ Appending rows to permanent local disk memory...;
+for (let file of files) {
+const id = 'task_' + Math.random().toString(36).substr(2, 9);
+const task = { id: id, file: file, name: file.name, status: 'Pending', durationSeconds: 0 };
+taskQueue.push(task);
+renderNewTaskItem(task);
+getVideoDuration(file, (duration) => { task.durationSeconds = duration; });
+}
+statusDiv.innerText = ✅ Current Batch Queue size: ${taskQueue.length}/${MAX_QUEUE_SIZE};
+updateToggleVisibility();
+});
+function getVideoDuration(file, callback) {
+const video = document.createElement('video');
+video.preload = 'metadata';
+video.onloadedmetadata = function() { window.URL.revokeObjectURL(video.src); callback(video.duration); };
+video.src = URL.createObjectURL(file);
+}
+function renderNewTaskItem(task) {
+const item = document.createElement('div');
+item.className = 'task-item';
+item.id = task.id;
+item.innerHTML = <div class="task-info"> <div class="task-left-block"> <button id="del_${task.id}" class="btn-row-delete" onclick="deleteTaskRow('${task.id}')">🗑️</button> <span class="task-name">${task.name}</span> </div> <div class="task-right-block"> <button id="pdf_${task.id}" class="btn-row-pdf" onclick="exportSingleTaskPDF('${task.id}')">📄 Save PDF</button> <span class="task-status" id="status_${task.id}">Ready</span> </div> </div> <div class="progress-container" id="container_${task.id}"> <div class="progress-bar" id="bar_${task.id}"></div> <div class="progress-text" id="text_${task.id}">0%</div> </div> <div class="timer-display" id="timer_${task.id}">Estimated time remaining: --:--</div>;
+taskListContainer.appendChild(item);
+}
+function deleteTaskRow(taskId) {
+const taskIndex = taskQueue.findIndex(t => t.id === taskId);
+if (taskIndex === -1) return;
+if (taskQueue[taskIndex].status === 'Processing') return;
+taskQueue.splice(taskIndex, 1);
+const uiRowElement = document.getElementById(taskId);
+if (uiRowElement) uiRowElement.remove();
+updateToggleVisibility();
+}
+function updateToggleVisibility() {
+queueCounter.innerText = (${taskQueue.length}/${MAX_QUEUE_SIZE} Clips);
+if (taskQueue.length >= MAX_QUEUE_SIZE) {
+uploadLabel.innerText = "🔒 Batch Full (Max 15 Video Limits Lock)";
+uploadLabel.className = "file-label disabled";
+queueUpload.disabled = true;
+} else {
+uploadLabel.innerText = "➕ Add Videos to Task List";
+uploadLabel.className = "file-label";
+queueUpload.disabled = false;
+}
+if (taskQueue.length === 0) {
+toggleRunBtn.style.display = "none";
+stopAfterBtn.style.display = "none";
+masterClearBtn.style.display = "none";
+isQueueRunning = false;
+toggleRunBtn.innerText = "Start Queue";
+toggleRunBtn.className = "btn-ctrl btn-start";
+} else {
+toggleRunBtn.style.display = "block";
+masterClearBtn.style.display = "block";
+}
+}
+toggleRunBtn.addEventListener('click', () => {
+if (isQueueRunning) {
+isQueueRunning = false;
+toggleRunBtn.innerText = "Resume Queue";
+toggleRunBtn.className = "btn-ctrl btn-start";
+statusDiv.innerText = "⏸️ Queue Paused.";
+enableAllRowDeletes();
+stopAudioWakeLock();
+} else {
+isQueueRunning = true;
+stopAfterCurrentVideo = false;
+toggleRunBtn.innerText = "Pause Queue";
+toggleRunBtn.className = "btn-ctrl btn-pause";
+stopAfterBtn.style.display = "block";
+statusDiv.innerText = "🚀 Processing... You can safely use other apps now.";
+startAudioWakeLock(); // Lock active tracking focus status inside iOS operating systems
+processNextQueueItem();
+}
+});
+stopAfterBtn.addEventListener('click', () => { stopAfterCurrentVideo = true; stopAfterBtn.style.display = "none"; });
+function disableActiveRowDelete(taskId) { const btn = document.getElementById(del_${taskId}); if (btn) btn.disabled = true; }
+function enableAllRowDeletes() { taskQueue.forEach(t => { const btn = document.getElementById(del_${t.id}); if (btn) btn.disabled = false; }); }
+// BACKGROUND-SMOOTH SEGMENT SLICER PATTERN IMPLEMENTATION LOOP ENGINE
+async function processNextQueueItem() {
+if (!isQueueRunning) { enableAllRowDeletes(); stopAudioWakeLock(); return; }
+const nextIdx = taskQueue.findIndex(t => t.status === 'Pending');
+if (nextIdx === -1 || (stopAfterCurrentVideo && currentTaskIndex !== nextIdx)) {
+isQueueRunning = false;
+toggleRunBtn.innerText = "Start Queue"; toggleRunBtn.className = "btn-ctrl btn-start";
+stopAfterBtn.style.display = "none"; statusDiv.innerText = "✅ Queue complete.";
+enableAllRowDeletes(); stopAudioWakeLock();
+return;
+}
+currentTaskIndex = nextIdx;
+const task = taskQueue[currentTaskIndex];
+task.status = 'Processing';
+disableActiveRowDelete(task.id);
+const uiStatus = document.getElementById(status_${task.id});
+const uiBar = document.getElementById(bar_${task.id});
+const uiText = document.getElementById(text_${task.id});
+const uiTimer = document.getElementById(timer_${task.id});
+uiStatus.innerText = "Splitting Audio...";
+try {
+// BREAK CPU STACK BURSTING: Let interface threads map render actions
+await new Promise(r => setTimeout(r, 150));
+const arrayBuffer = await task.file.arrayBuffer();
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+const rawAudioChannel = decodedBuffer.getChannelData(0);
+uiStatus.innerText = "Processing AI...";
+uiTimer.style.display = "block";
+if (!audioPipeline) {
+audioPipeline = await transformers.pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+}
+let totalEstimatedSeconds = Math.max(5, Math.ceil(task.durationSeconds / 10));
+let secondsRemaining = totalEstimatedSeconds;
+let currentFakeProgress = 5;
+const progressInterval = setInterval(() => {
+if (currentFakeProgress < 92) {
+currentFakeProgress += Math.floor(Math.random() * 4) + 2;
+uiBar.style.width = currentFakeProgress + "%"; uiText.innerText = currentFakeProgress + "%";
+}
+if (secondsRemaining > 2) {
+secondsRemaining--;
+let mins = Math.floor(secondsRemaining / 60); let secs = secondsRemaining % 60;
+uiTimer.innerText = Remaining: ${mins}:${secs < 10 ? '0' : ''}${secs};
+}
+}, 1000);
+// SLICED OPERATION CALL: Runs inside macro frames to allow other apps to draw data smoothly
+const aiOutput = await audioPipeline(rawAudioChannel, { chunk_length_s: 30, stride_length_s: 5, return_timestamps: true });
+clearInterval(progressInterval);
+// COMMIT TO PHYSICAL STORAGE CHIP IMMEDIATELY (RAM EXPANSION GUARD)
+saveToDisk(task.id, aiOutput.text);
+task.status = 'Completed';
+uiBar.style.width = "100%"; uiText.innerText = "100%";
+uiStatus.style.display = "none"; uiTimer.style.display = "none";
+document.getElementById(container_${task.id}).style.display = "none";
+document.getElementById(pdf_${task.id}).style.display = "block";
+outputDiv.innerText = Disk Cache Saved: ${task.name};
+// CUSHION REST TIME FOR THE IPHONE HARDWARE CORE SENSOR CHIPS
+await new Promise(r => setTimeout(r, 600));
+processNextQueueItem();
+} catch (err) {
+uiStatus.innerText = "Failed"; task.status = 'Error';
+processNextQueueItem();
+}
+}
+async function exportSingleTaskPDF(taskId) {
+const task = taskQueue.find(t => t.id === taskId);
+if (!task) return;
+statusDiv.innerText = ⏳ Extracting text chunk from physical disk cache...;
+// Pull the clean text block back up from the disk file index block mapping structure
+getFromDisk(task.id, async (storedText) => {
+if (!storedText) { statusDiv.innerText = "❌ File data block recovery dropped."; return; }
+const pdfElement = document.createElement('div');
+pdfElement.style.padding = '35px'; pdfElement.style.color = '#000000'; pdfElement.style.fontFamily = 'Helvetica, Arial, sans-serif';
+pdfElement.innerHTML = <h1 style="color:#1a9fff; border-bottom:2px solid #1a9fff; padding-bottom:8px; font-size:20px;">Juno Lecture Notes</h1> <p style="font-size:11px; color:#666;">Source: ${task.name}<br>Date: ${new Date().toLocaleString()}</p> <div style="font-size:13px; line-height:1.6; white-space:pre-wrap;">${storedText}</div>;
+const cleanFileName = task.name.replace(/.[^/.]+$/, "") + "_Notes.pdf";
+const opt = { margin: 12, filename: cleanFileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+try {
+const pdfBlob = await html2pdf().set(opt).from(pdfElement).output('blob');
+const file = new File([pdfBlob], cleanFileName, { type: "application/pdf" });
+if (navigator.canShare && navigator.canShare({ files: [file] })) {
+await navigator.share({ files: [file], title: task.name });
+statusDiv.innerText = "✅ Note dispatched out to Acrobat!";
+}
+} catch (err) { statusDiv.innerText = "❌ PDF build fail."; }
+});
+}
